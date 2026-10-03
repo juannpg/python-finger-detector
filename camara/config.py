@@ -1,13 +1,13 @@
-"""Ajustes que normalmente querrás cambiar al experimentar."""
+"""Valores editables de la experiencia de síntesis con breakpoints."""
 
 from pathlib import Path
 
-
 CAMERA_INDEX = 0
-MIRROR_IMAGE = True  # MediaPipe clasifica las manos suponiendo una imagen de espejo.
-TARGET_HAND = "Left"
-WHITE_HAND = "Right"
-WINDOW_TITLE = "Camara - pulsa Q para salir"
+MIRROR_IMAGE = True
+# Etiquetas observadas en esta webcam: izquierda física = Right.
+ADD_HAND = "Right"
+DRAG_HAND = "Left"
+WINDOW_TITLE = "Onda - R reiniciar - Q salir"
 
 MODEL_URL = (
     "https://storage.googleapis.com/mediapipe-models/hand_landmarker/"
@@ -15,32 +15,28 @@ MODEL_URL = (
 )
 MODEL_PATH = Path(__file__).resolve().parent.parent / "models" / "hand_landmarker.task"
 
+THUMB_TIP = 4
+INDEX_TIP = 8
+ACTION_FINGERS = (THUMB_TIP, INDEX_TIP)
+PINCH_THRESHOLD = 0.20  # Proporción de la distancia muñeca-nudillo medio.
+PINCH_RELEASE_THRESHOLD = 0.28
+LINE_HIT_RADIUS = 22  # Píxeles: margen para añadir sobre la curva.
+POINT_HIT_RADIUS = 26
+MIN_POINT_SPACING = 0.025  # Proporción del ancho de la pantalla.
+WAVE_TOP = 0.15
+WAVE_BOTTOM = 0.90
+WAVE_CENTER = 0.50
 
-DOT_RADIUS = 12
-# Colores BGR: OpenCV usa el orden azul, verde, rojo.
-GREEN = (0, 255, 0)
-RED = (0, 0, 255)
-PINK = (100, 0, 255)
+# Colores BGR de OpenCV.
+PURPLE = (220, 90, 170)
 WHITE = (255, 255, 255)
+DOT_RADIUS = 5
+POINT_RADIUS = 8
 LINE_THICKNESS = 3
 
-# MediaPipe numera los 21 puntos de cada mano del 0 al 20.
-INDEX_TIP = 8
-INDEX_DIP = 7
-THUMB_TIP = 4
-MIDDLE_TIP = 12
-RING_TIP = 16
-PINKY_TIP = 20
-RING_PIP = 14
-# (base, articulación central, articulación distal, punta) de cada dedo.
-FINGER_JOINTS = {
-    THUMB_TIP: (1, 2, 3, THUMB_TIP),
-    INDEX_TIP: (5, 6, 7, INDEX_TIP),
-    MIDDLE_TIP: (9, 10, 11, MIDDLE_TIP),
-    RING_TIP: (13, 14, 15, RING_TIP),
-    PINKY_TIP: (17, 18, 19, PINKY_TIP),
-}
-# Un dedo se considera extendido si sus dos articulaciones forman al menos este ángulo.
-EXTENDED_ANGLE_DEGREES = 155
-# Distancia máxima entre los puntos, como fracción del tamaño de la palma.
-TOUCH_THRESHOLD = 0.20
+FREQUENCY = 440.0
+SAMPLE_RATE = 48000
+TABLE_SIZE = 2048
+AUDIO_BLOCK_SIZE = 256
+AUDIO_GAIN = 0.18
+AUDIO_MORPH_SECONDS = 0.025

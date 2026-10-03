@@ -1,39 +1,27 @@
-"""Aquí se decide qué mostrar y qué gesto activa cada acción."""
+"""Configura los marcadores y conecta las pinzas con sus acciones."""
 
 import numpy as np
 
-from camara.actions import write_straight_line
+from camara.actions import add_breakpoint, draw_waveform, move_breakpoint
 from camara.app import run
-from camara.config import (
-    GREEN, INDEX_TIP, MIDDLE_TIP, PINK, PINKY_TIP,
-    RED, RING_PIP, RING_TIP, TARGET_HAND, THUMB_TIP, WHITE, WHITE_HAND,
-)
-from camara.detectors import on_touch, put_dot, put_dot_if_raised
+from camara.config import ACTION_FINGERS, ADD_HAND, DRAG_HAND, WHITE
+from camara.detectors import pinch_position, put_dot
 from camara.tracker import Hand
+from camara.waveform import WaveformEditor
 
 
-def process_frame(frame: np.ndarray, hands: list[Hand], permanent_canvas: np.ndarray) -> None:
-    for hand in hands:
-        if hand.side == TARGET_HAND:
-            put_dot(frame, hand, GREEN, INDEX_TIP)
-            put_dot(frame, hand, RED, THUMB_TIP)
-            put_dot(frame, hand, PINK, RING_PIP)
+def process_frame(frame: np.ndarray, hands: list[Hand], editor: WaveformEditor) -> None:
+    left = next((hand for hand in hands if hand.side == ADD_HAND), None)
+    right = next((hand for hand in hands if hand.side == DRAG_HAND), None)
 
-            on_touch(
-                frame, hand, [RING_PIP, THUMB_TIP],
-                lambda _: write_straight_line(permanent_canvas, hands),
-            )
-            on_touch(
-                frame, hand, [THUMB_TIP, INDEX_TIP],
-                lambda image: write_straight_line(image, hands),
-            )
+    add_breakpoint(frame, editor, pinch_position(frame, left, editor.left_pinched))
+    move_breakpoint(frame, editor, pinch_position(frame, right, editor.right_pinched))
+    draw_waveform(frame, editor)
 
-        if hand.side == WHITE_HAND:
-            put_dot_if_raised(frame, hand, WHITE, THUMB_TIP)
-            put_dot_if_raised(frame, hand, WHITE, INDEX_TIP)
-            put_dot_if_raised(frame, hand, WHITE, MIDDLE_TIP)
-            put_dot_if_raised(frame, hand, WHITE, RING_TIP)
-            put_dot_if_raised(frame, hand, WHITE, PINKY_TIP)
+    for hand in (left, right):
+        if hand is not None:
+            for fingertip in ACTION_FINGERS:
+                put_dot(frame, hand, WHITE, fingertip)
 
 
 if __name__ == "__main__":
