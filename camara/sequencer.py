@@ -6,7 +6,7 @@ from collections.abc import Callable
 from time import monotonic
 
 from camara.config import (
-    BPM, CONFIRM_RELEASE_FRAMES, INSTRUMENTS, SLIDER_ANGLE_DEADZONE,
+    BPM, CONFIRM_RELEASE_FRAMES, INSTRUMENTS, KEY_NOTES, SLIDER_ANGLE_DEADZONE,
     SLIDER_BPM_PER_DEGREE, SLIDER_MAX_BPM, SLIDER_MIN_BPM, SLIDER_SMOOTHING,
 )
 
@@ -21,6 +21,9 @@ class DrumMachine:
     ) -> None:
         self.bpm = bpm
         self.mode = "quarter"
+        self.interaction_mode = "beat"
+        self.key_note = KEY_NOTES[0]
+        self.key_quality = "major"
         self.patterns: dict[str, Pattern] = {
             name: (0, 0, 0, 0) for name, _, _ in INSTRUMENTS
         }
@@ -47,8 +50,10 @@ class DrumMachine:
                 self._active_contact = None
             return
 
-        self._release_frames = 0
-        if pattern is None or self._active_contact is not None:
+        if self.interaction_mode != "beat" or pattern is None:
+            self._release_frames = 0
+            return
+        if not self._begin_contact(instrument):
             return
 
         if self.mode == "quarter":
@@ -65,19 +70,36 @@ class DrumMachine:
             self.patterns[instrument] = tuple(notes)
             self._next_eighth_half[instrument] = 1 - half
 
-        self._active_contact = instrument
-
     def toggle_mode(self) -> None:
         """Alterna el modo una vez por contacto con el interruptor."""
+        if self.interaction_mode == "beat" and self._begin_contact("mode"):
+            self.mode = "eighth" if self.mode == "quarter" else "quarter"
+
+    def _begin_contact(self, target: str) -> bool:
+        """Un contacto activa una sola acción hasta separar el pulgar."""
         self._release_frames = 0
         if self._active_contact is not None:
-            return
-        self.mode = "eighth" if self.mode == "quarter" else "quarter"
-        self._active_contact = "mode"
+            return False
+        self._active_contact = target
+        return True
+
+    def toggle_interaction_mode(self) -> None:
+        if self._begin_contact("interaction"):
+            self.interaction_mode = "chords" if self.interaction_mode == "beat" else "beat"
+            self.slider_active = False
+
+    def toggle_key_quality(self) -> None:
+        if self.interaction_mode == "chords" and self._begin_contact("key_quality"):
+            self.key_quality = "minor" if self.key_quality == "major" else "major"
+
+    def advance_key(self) -> None:
+        if self.interaction_mode == "chords" and self._begin_contact("key_note"):
+            index = KEY_NOTES.index(self.key_note)
+            self.key_note = KEY_NOTES[(index + 1) % len(KEY_NOTES)]
 
     def update_slider(self, touching: bool, angle_degrees: float | None) -> None:
         """Ajusta el tempo solo mientras el pulgar mantiene pulsado el punto."""
-        if not touching or angle_degrees is None:
+        if self.interaction_mode != "beat" or not touching or angle_degrees is None:
             self.slider_active = False
             return
         if not self.slider_active:

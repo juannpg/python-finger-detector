@@ -41,6 +41,9 @@ RING_TIP = 16
 PINKY_TIP = 20
 BEAT_FINGERS = (PINKY_TIP, RING_TIP, MIDDLE_TIP, INDEX_TIP)
 MODE_SWITCH_LANDMARK = 17  # Nudillo de la base del meñique de cada mano.
+INTERACTION_SWITCH_LANDMARK = 13  # Base del anular derecho: beat/acordes.
+KEY_QUALITY_LANDMARK = MIDDLE_TIP  # Punta del medio derecho: mayor/menor.
+KEY_NOTES = ("C", "D", "E", "F", "G", "A", "B")
 # (nombre, punta que confirma el sonido, color BGR)
 INSTRUMENTS = (
     ("kick", INDEX_TIP, (255, 0, 0)),
@@ -49,8 +52,17 @@ INSTRUMENTS = (
     ("splash", PINKY_TIP, SPLASH_COLOR),
 )
 MODE_TARGET = "mode"
+INTERACTION_TARGET = "interaction"
+KEY_QUALITY_TARGET = "key_quality"
+KEY_NOTE_TARGET = "key_note"
 CONTROL_TARGETS = tuple((name, tip) for name, tip, _ in INSTRUMENTS) + (
     (MODE_TARGET, MODE_SWITCH_LANDMARK),
+    (INTERACTION_TARGET, INTERACTION_SWITCH_LANDMARK),
+)
+CHORD_CONTROL_TARGETS = (
+    (INTERACTION_TARGET, INTERACTION_SWITCH_LANDMARK),
+    (KEY_QUALITY_TARGET, KEY_QUALITY_LANDMARK),
+    (KEY_NOTE_TARGET, INDEX_TIP),
 )
 SLIDER_TARGET = (("slider", MODE_SWITCH_LANDMARK),)
 # (base, articulación central, articulación distal, punta) de cada dedo.

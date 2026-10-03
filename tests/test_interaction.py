@@ -1,5 +1,6 @@
 import unittest
 from math import cos, radians, sin
+from unittest.mock import patch
 
 import numpy as np
 
@@ -28,7 +29,7 @@ def control_hand(target: str = "kick") -> Hand:
     points[0] = Point(0.1, 0.9)
     points[9] = Point(0.1, 0.5)
     points[4] = Point(0.2, 0.2)   # Pulgar de confirmar.
-    landmarks = {"kick": 8, "mode": 17}
+    landmarks = {"kick": 8, "mode": 17, "interaction": 13, "quality": 12}
     points[landmarks[target]] = Point(0.21, 0.2)
     return Hand(CONTROL_HAND, tuple(points))
 
@@ -48,11 +49,80 @@ def slider_hand(angle: float, touching: bool) -> Hand:
 
 
 class InteractionTests(unittest.TestCase):
-    def test_only_pinky_base_is_a_mode_target(self):
+    def test_beat_targets_include_both_mode_switches(self):
         self.assertEqual(
             CONTROL_TARGETS,
-            (("kick", 8), ("snare", 12), ("hihat", 16), ("splash", 20), ("mode", 17)),
+            (("kick", 8), ("snare", 12), ("hihat", 16), ("splash", 20),
+             ("mode", 17), ("interaction", 13)),
         )
+
+    def test_chord_controls_cycle_once_per_pinch_and_preserve_the_beat(self):
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        machine = DrumMachine(lambda _: None, start_at=0)
+        original_patterns = machine.patterns.copy()
+        self.assertEqual((machine.key_note, machine.key_quality), ("C", "major"))
+
+        def release():
+            for _ in range(3):
+                process_frame(frame.copy(), [], machine)
+
+        for _ in range(5):
+            process_frame(frame.copy(), [control_hand("interaction")], machine)
+        self.assertEqual(machine.interaction_mode, "chords")
+        # Cambiar de objetivo sin soltar no cuenta como otra pinza.
+        process_frame(frame.copy(), [control_hand("kick")], machine)
+        self.assertEqual(machine.key_note, "C")
+
+        for expected in ("D", "E", "F", "G", "A", "B", "C"):
+            release()
+            for _ in range(5):
+                process_frame(frame.copy(), [control_hand("kick")], machine)
+            self.assertEqual(machine.key_note, expected)
+
+        release()
+        for _ in range(5):
+            process_frame(frame.copy(), [control_hand("quality")], machine)
+        self.assertEqual(machine.key_quality, "minor")
+        release()
+        process_frame(frame.copy(), [control_hand("interaction")], machine)
+        self.assertEqual(machine.interaction_mode, "beat")
+        self.assertEqual((machine.key_note, machine.key_quality), ("C", "minor"))
+        self.assertEqual(machine.patterns, original_patterns)
+
+    def test_chord_controls_require_the_right_hand(self):
+        frame = np.zeros((480, 640, 3), dtype=np.uint8)
+        machine = DrumMachine(lambda _: None, start_at=0)
+        left = Hand(PATTERN_HAND, control_hand("interaction").points)
+        process_frame(frame.copy(), [left], machine)
+        self.assertEqual(machine.interaction_mode, "beat")
+
+        process_frame(frame.copy(), [control_hand("interaction")], machine)
+        for _ in range(3):
+            process_frame(frame.copy(), [], machine)
+        for target in ("quality", "kick"):
+            left = Hand(PATTERN_HAND, control_hand(target).points)
+            process_frame(frame.copy(), [left], machine)
+        self.assertEqual((machine.key_note, machine.key_quality), ("C", "major"))
+
+    def test_chords_show_pinch_markers_and_disable_the_tempo_slider(self):
+        frame = np.zeros((400, 640, 3), dtype=np.uint8)
+        machine = DrumMachine(lambda _: None, start_at=0)
+        machine.update_slider(True, 0)
+        self.assertTrue(machine.slider_active)
+
+        with patch("main.put_dot") as draw_dot, patch("main.draw_mode_switch") as draw_switch:
+            process_frame(
+                frame, [slider_hand(20, True), control_hand("interaction")], machine
+            )
+        self.assertEqual(machine.interaction_mode, "chords")
+        self.assertFalse(machine.slider_active)
+        self.assertEqual([call.args[3] for call in draw_dot.call_args_list], [8, 4])
+        self.assertTrue(all(call.args[1].side == CONTROL_HAND for call in draw_dot.call_args_list))
+        self.assertEqual([call.args[3] for call in draw_switch.call_args_list], [13, 12])
+        bpm = machine.bpm
+        for _ in range(5):
+            process_frame(frame.copy(), [slider_hand(-20, True)], machine)
+        self.assertEqual(machine.bpm, bpm)
 
     def test_contact_captures_four_left_fingers_and_can_overwrite(self):
         frame = np.zeros((400, 640, 3), dtype=np.uint8)

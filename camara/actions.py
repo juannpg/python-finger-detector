@@ -6,7 +6,8 @@ import cv2
 import numpy as np
 
 from camara.config import (
-    BLACK, DOT_RADIUS, INSTRUMENTS, MODE_SWITCH_LANDMARK, MODE_TARGET,
+    BLACK, DOT_RADIUS, INSTRUMENTS, INTERACTION_TARGET, KEY_NOTE_TARGET,
+    KEY_QUALITY_TARGET, MODE_SWITCH_LANDMARK, MODE_TARGET,
     PURPLE, WHITE,
 )
 from camara.sequencer import DrumMachine, FourBeats
@@ -28,6 +29,12 @@ def handle_control_target(
         machine.confirm(None, None)
     elif target == MODE_TARGET:
         machine.toggle_mode()
+    elif target == INTERACTION_TARGET:
+        machine.toggle_interaction_mode()
+    elif target == KEY_QUALITY_TARGET:
+        machine.toggle_key_quality()
+    elif target == KEY_NOTE_TARGET:
+        machine.advance_key()
     else:
         machine.confirm(target, pattern)
 
@@ -42,12 +49,22 @@ def draw_instrument_label(
     cv2.putText(frame, name, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2)
 
 
-def draw_mode_switch(frame: np.ndarray, hand: Hand, active: bool) -> None:
+def draw_mode_switch(
+    frame: np.ndarray, hand: Hand, active: bool, landmark: int = MODE_SWITCH_LANDMARK
+) -> None:
     height, width = frame.shape[:2]
-    point = hand.points[MODE_SWITCH_LANDMARK]
+    point = hand.points[landmark]
     center = (int(point.x * width), int(point.y * height))
     cv2.circle(frame, center, DOT_RADIUS + 2, WHITE, -1)
     cv2.circle(frame, center, DOT_RADIUS, PURPLE if active else BLACK, -1)
+
+
+def _draw_centered_label(frame: np.ndarray, message: str, y: int) -> None:
+    font, scale, thickness = cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2
+    (width, height), baseline = cv2.getTextSize(message, font, scale, thickness)
+    x = (frame.shape[1] - width) // 2
+    cv2.rectangle(frame, (x - 12, y - height - 6), (x + width + 12, y + baseline + 6), (25, 25, 25), -1)
+    cv2.putText(frame, message, (x, y), font, scale, WHITE, thickness)
 
 
 def draw_status(frame: np.ndarray, machine: DrumMachine) -> None:
@@ -77,7 +94,13 @@ def draw_status(frame: np.ndarray, machine: DrumMachine) -> None:
     mode_color = PURPLE if machine.mode == "eighth" else WHITE
     cv2.putText(frame, message, (mode_x, mode_y), font, mode_scale, mode_color, 2)
 
-    panel_x, panel_y = 12, 94 if width < 420 else 54
+    interaction = "acordes" if machine.interaction_mode == "chords" else "beat"
+    quality = "menor" if machine.key_quality == "minor" else "mayor"
+    key = f"{machine.key_note} {quality}"
+    _draw_centered_label(frame, f"modo: {interaction}", mode_y + 36)
+    _draw_centered_label(frame, f"tonalidad: {key}", mode_y + 72)
+
+    panel_x, panel_y = 12, mode_y + 98
     panel_width = min(520, width - 24)
     panel_height = 192
     if panel_width <= 0 or height <= panel_y:

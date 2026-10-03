@@ -18,6 +18,14 @@ La mano de los puntos blancos tiene otro punto en la **base del meñique**. Mant
 
 Las cuatro filas están siempre arriba a la izquierda, empezando en `0 0 0 0`. Solo el instrumento elegido pasa a ocho notas al confirmar corcheas; los demás conservan sus cuatro negras. El panel usa ocho columnas fijas (`1 & 2 & 3 & 4 &`), de modo que los números quedan alineados y las negras ocupan una columna sí y otra no. Arriba a la derecha se muestra el BPM actual.
 
+### Modo acordes
+
+El punto de la **base del anular derecho** alterna entre beat y acordes al tocarlo con el **pulgar derecho**. El modo aparece debajo del rótulo de negras/corcheas y la tonalidad debajo de él. La tonalidad inicial es **C mayor**.
+
+En acordes se ocultan los controles de batería y tempo. Quedan visibles el toggle beat/acordes y el de la **punta del medio derecho**, que alterna entre **mayor y menor** al tocarlo con el pulgar derecho. El pulgar tiene un punto verde y el índice uno blanco para visualizar la pinza que avanza la nota: C → D → E → F → G → A → B → C. La primera pinza pasa de C a D; mantenerla no repite el cambio. Separa los dedos antes de la siguiente acción.
+
+Esta primera versión del modo acordes selecciona la tonalidad. El patrón de batería guardado sigue reproduciéndose y se conserva al volver a beat.
+
 ## Ejecutar
 
 ```sh
