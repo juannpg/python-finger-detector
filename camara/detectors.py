@@ -1,25 +1,31 @@
-"""Funciones reutilizables para dibujar puntos y reaccionar a contactos."""
+"""Marcadores y gestos reutilizables para configurar la experiencia en main."""
 
-from collections.abc import Callable
-from math import acos, degrees, hypot
+from __future__ import annotations
+
+from math import acos, atan2, degrees, hypot
+from typing import Sequence, TypeVar
 
 import cv2
 import numpy as np
 
 from camara.config import (
-    DOT_RADIUS, EXTENDED_ANGLE_DEGREES, FINGER_JOINTS,
+    BEAT_FINGERS, DOT_RADIUS, EXTENDED_ANGLE_DEGREES, FINGER_JOINTS,
     THUMB_TIP, TOUCH_THRESHOLD,
 )
 from camara.tracker import Hand, Point
 
 
-def put_dot(frame: np.ndarray, hand: Hand, bgr: tuple[int, int, int], landmark: int) -> None:
-    """Dibuja un punto de la mano sobre el fotograma."""
+def put_dot(
+    frame: np.ndarray,
+    hand: Hand,
+    bgr: tuple[int, int, int],
+    landmark: int,
+    radius: int = DOT_RADIUS,
+) -> None:
+    """Dibuja un punto en cualquier marcador de MediaPipe."""
     height, width = frame.shape[:2]
     point = hand.points[landmark]
-    x = int(point.x * width)
-    y = int(point.y * height)
-    cv2.circle(frame, (x, y), DOT_RADIUS, bgr, -1)
+    cv2.circle(frame, (int(point.x * width), int(point.y * height)), radius, bgr, -1)
 
 
 def _distance(a: Point, b: Point, width: int, height: int) -> float:
@@ -56,23 +62,43 @@ def is_finger_raised(frame: np.ndarray, hand: Hand, fingertip: int) -> bool:
 
 def put_dot_if_raised(
     frame: np.ndarray, hand: Hand, bgr: tuple[int, int, int], fingertip: int
-) -> None:
-    """Dibuja la punta solo cuando el dedo está extendido."""
-    if is_finger_raised(frame, hand, fingertip):
+) -> bool:
+    """Dibuja el punto si el dedo está levantado y devuelve ese estado."""
+    raised = is_finger_raised(frame, hand, fingertip)
+    if raised:
         put_dot(frame, hand, bgr, fingertip)
+    return raised
 
 
-def on_touch(
+def palm_rotation_degrees(frame: np.ndarray, hand: Hand) -> float:
+    """Ángulo de la palma en pantalla: positivo al girar hacia la derecha."""
+    wrist = hand.points[0]
+    bases = [hand.points[FINGER_JOINTS[tip][0]] for tip in BEAT_FINGERS]
+    center_x = sum(point.x for point in bases) / len(bases)
+    center_y = sum(point.y for point in bases) / len(bases)
+    height, width = frame.shape[:2]
+    return degrees(atan2((center_x - wrist.x) * width, (wrist.y - center_y) * height))
+
+
+Choice = TypeVar("Choice")
+
+
+def closest_touch(
     frame: np.ndarray,
     hand: Hand,
-    pair: tuple[int, int],
-    action: Callable[[np.ndarray], None],
-) -> None:
-    """Ejecuta la acción en cada fotograma donde los dos puntos se tocan."""
+    anchor: int,
+    candidates: Sequence[tuple[Choice, int]],
+    threshold: float = TOUCH_THRESHOLD,
+) -> Choice | None:
+    """Devuelve el dedo más cercano al pulgar si está dentro del umbral."""
     height, width = frame.shape[:2]
     palm_size = _distance(hand.points[0], hand.points[9], width, height)
     if palm_size == 0:
-        return
-    gap = _distance(hand.points[pair[0]], hand.points[pair[1]], width, height)
-    if gap < TOUCH_THRESHOLD * palm_size:
-        action(frame)
+        return None
+
+    distances = (
+        (_distance(hand.points[anchor], hand.points[tip], width, height), name)
+        for name, tip in candidates
+    )
+    gap, choice = min(distances, key=lambda item: item[0])
+    return choice if gap < threshold * palm_size else None

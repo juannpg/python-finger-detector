@@ -1,28 +1,114 @@
-"""Acciones que pueden disparar los detectores."""
+"""Acciones de los gestos y dibujo de la interfaz."""
+
+from __future__ import annotations
 
 import cv2
 import numpy as np
 
 from camara.config import (
-    INDEX_TIP, LINE_THICKNESS, MIDDLE_TIP, PINKY_TIP,
-    RING_TIP, THUMB_TIP, WHITE, WHITE_HAND,
+    BLACK, DOT_RADIUS, INSTRUMENTS, MODE_SWITCH_LANDMARK, MODE_TARGET,
+    PURPLE, WHITE,
 )
-from camara.detectors import is_finger_raised
+from camara.sequencer import DrumMachine, FourBeats
 from camara.tracker import Hand
 
 
-def write_straight_line(frame: np.ndarray, hands: list[Hand]) -> None:
-    """Une las puntas blancas que están levantadas, en orden de pulgar a meñique."""
+def move_tempo_slider(
+    machine: DrumMachine, touching: bool, angle_degrees: float | None
+) -> None:
+    """Usa el giro de la mano para cambiar el BPM mientras el punto está pulsado."""
+    machine.update_slider(touching, angle_degrees)
+
+
+def handle_control_target(
+    machine: DrumMachine, target: str | None, pattern: FourBeats | None
+) -> None:
+    """El punto seleccionado confirma un sonido o cambia negras/corcheas."""
+    if target is None:
+        machine.confirm(None, None)
+    elif target == MODE_TARGET:
+        machine.toggle_mode()
+    else:
+        machine.confirm(target, pattern)
+
+
+def draw_instrument_label(
+    frame: np.ndarray, hand: Hand, fingertip: int, name: str, color: tuple[int, int, int]
+) -> None:
     height, width = frame.shape[:2]
-    fingertips = (THUMB_TIP, INDEX_TIP, MIDDLE_TIP, RING_TIP, PINKY_TIP)
+    point = hand.points[fingertip]
+    x = min(int(point.x * width) + 16, width - 1)
+    y = max(int(point.y * height) - 10, 16)
+    cv2.putText(frame, name, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.55, color, 2)
 
-    for hand in hands:
-        if hand.side != WHITE_HAND:
-            continue
 
-        raised = [tip for tip in fingertips if is_finger_raised(frame, hand, tip)]
-        for first, second in zip(raised, raised[1:]):
-            a, b = hand.points[first], hand.points[second]
-            start = (int(a.x * width), int(a.y * height))
-            end = (int(b.x * width), int(b.y * height))
-            cv2.line(frame, start, end, WHITE, LINE_THICKNESS, cv2.LINE_AA)
+def draw_mode_switch(frame: np.ndarray, hand: Hand, active: bool) -> None:
+    height, width = frame.shape[:2]
+    point = hand.points[MODE_SWITCH_LANDMARK]
+    center = (int(point.x * width), int(point.y * height))
+    cv2.circle(frame, center, DOT_RADIUS + 2, WHITE, -1)
+    cv2.circle(frame, center, DOT_RADIUS, PURPLE if active else BLACK, -1)
+
+
+def draw_status(frame: np.ndarray, machine: DrumMachine) -> None:
+    height, width = frame.shape[:2]
+    tempo = f"{machine.bpm} BPM"
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    (text_width, _), _ = cv2.getTextSize(tempo, font, 0.7, 2)
+    badge_x = max(8, width - text_width - 28)
+    cv2.rectangle(frame, (badge_x - 8, 8), (width - 12, 42), (30, 30, 30), -1)
+    tempo_color = PURPLE if machine.slider_active else WHITE
+    cv2.putText(frame, tempo, (badge_x, 33), font, 0.7, tempo_color, 2)
+
+    message = "modo: corcheas" if machine.mode == "eighth" else "modo: negras"
+    mode_scale = 0.8 if width >= 600 else 0.6
+    mode_y = 72 if width < 420 else 33
+    (message_width, message_height), baseline = cv2.getTextSize(
+        message, font, mode_scale, 2
+    )
+    mode_x = (width - message_width) // 2
+    cv2.rectangle(
+        frame,
+        (mode_x - 14, mode_y - message_height - 8),
+        (mode_x + message_width + 14, mode_y + baseline + 8),
+        (25, 25, 25),
+        -1,
+    )
+    mode_color = PURPLE if machine.mode == "eighth" else WHITE
+    cv2.putText(frame, message, (mode_x, mode_y), font, mode_scale, mode_color, 2)
+
+    panel_x, panel_y = 12, 94 if width < 420 else 54
+    panel_width = min(520, width - 24)
+    panel_height = 192
+    if panel_width <= 0 or height <= panel_y:
+        return
+    panel_bottom = min(panel_y + panel_height, height - 1)
+    overlay = frame.copy()
+    cv2.rectangle(
+        overlay, (panel_x, panel_y), (panel_x + panel_width, panel_bottom), (18, 18, 18), -1
+    )
+    cv2.addWeighted(overlay, 0.78, frame, 0.22, 0, dst=frame)
+    cv2.rectangle(
+        frame, (panel_x, panel_y), (panel_x + panel_width, panel_bottom), (100, 100, 100), 1
+    )
+
+    label_width = min(150, int(panel_width * 0.30))
+    grid_left = panel_x + label_width
+    grid_right = panel_x + panel_width - 25
+    step = (grid_right - grid_left) / 7
+    number_scale = 0.8 if width >= 520 else 0.62
+    for column, heading in enumerate(("1", "&", "2", "&", "3", "&", "4", "&")):
+        x = round(grid_left + column * step)
+        cv2.putText(frame, heading, (x, panel_y + 22), font, 0.48, (175, 175, 175), 1)
+
+    colors = {name: color for name, _, color in INSTRUMENTS}
+    for row, (instrument, pattern) in enumerate(machine.patterns.items()):
+        y = panel_y + 59 + row * 36
+        if y >= height:
+            break
+        cv2.putText(frame, f"{instrument}:", (panel_x + 14, y), font, 0.7, colors[instrument], 2)
+        columns = range(8) if len(pattern) == 8 else range(0, 8, 2)
+        for note, column in zip(pattern, columns):
+            x = round(grid_left + column * step)
+            color = WHITE if note else (155, 155, 155)
+            cv2.putText(frame, str(note), (x, y), font, number_scale, color, 2)
