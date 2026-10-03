@@ -31,3 +31,6 @@ Para añadir otro marcador, define el punto y el color en `camara/config.py` y a
 El lienzo permanente se guarda en memoria durante la ejecución y se superpone a cada fotograma. Se vacía al cerrar y volver a abrir el programa.
 
 `TOUCH_THRESHOLD` es una fracción de la longitud de la palma, no una distancia fija en píxeles. `on_touch` ejecuta la acción en cada fotograma mientras dura el contacto. La detección es una aproximación en 2D: dos puntos pueden parecer juntos en la imagen aunque estén separados en profundidad.
+
+## CÓMO CREAR
+Existe una rama `basic-imp` con un proyecto muy básico para detectar dedos y gestos simples, donde es fácil ver la arquitectura. Puedes crear una rama a partir de ella para editarla y configurar tus propios gestos.
