@@ -19,7 +19,7 @@ python main.py
 
 En la primera ejecución se descarga el modelo de [MediaPipe Hand Landmarker](https://developers.google.com/edge/mediapipe/solutions/vision/hand_landmarker/python) en `models/`. Concede permiso de cámara si se solicita y pulsa `Q` para cerrar.
 
-## Cómo está organizado
+## Arquitectura
 
 | Componente | Responsabilidad |
 | --- | --- |
