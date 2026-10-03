@@ -1,6 +1,14 @@
-# Drum patterns con las manos
+# Cámara: interacción con las manos
 
-La rama `drum-progression` crea un compás de cuatro tiempos que se repite en bucle. Empieza a **80 BPM** y permite ajustar el tempo con la mano. La mano izquierda escribe los tiempos: **meñique, anular, medio e índice** equivalen a los tiempos 1–4. Dedo levantado = sonido (`1`); dedo retraído = silencio (`0`). Su pulgar activa el slider de tempo.
+Proyecto experimental de visión por computador para crear experiencias interactivas con gestos capturados por webcam.
+
+## Esta rama: `drum-progression`
+
+Esta rama crea patrones de batería que se reproducen en un compás de cuatro tiempos en bucle. El tempo inicial es **80 BPM** y se puede ajustar con la mano.
+
+## Cómo funciona
+
+La mano izquierda escribe los tiempos: **meñique, anular, medio e índice** equivalen a los tiempos 1–4. Dedo levantado = sonido (`1`); dedo retraído = silencio (`0`). Su pulgar activa el control de tempo.
 
 La mano derecha elige el instrumento: índice = **kick**, medio = **snare**, anular = **hihat** y meñique = **splash**. Las cuatro puntas tienen un punto de color para confirmar el sonido con el pulgar derecho (círculo verde). El punto de la **base del meñique** cambia entre modo negras (negro) y modo corcheas (morado). Arriba, en el centro, aparece siempre `modo: negras` o `modo: corcheas`. Separa los dedos antes de volver a confirmar o cambiar de modo.
 
@@ -21,7 +29,7 @@ python main.py
 
 Permite el acceso a la cámara si el sistema lo solicita. Pulsa **Q** para cerrar. Tras editar el código, cierra y vuelve a ejecutar el programa. El modelo de [MediaPipe Hand Landmarker](https://developers.google.com/edge/mediapipe/solutions/vision/hand_landmarker/python) se descarga la primera vez. Las cuatro muestras WAV y su procedencia están en [assets/sounds/README.md](assets/sounds/README.md).
 
-## Estructura
+## Arquitectura
 
 | Archivo | Responsabilidad |
 | --- | --- |
@@ -38,6 +46,7 @@ El flujo sigue el esquema de la rama `basic-impl`: webcam → `HandTracker` → 
 
 La detección de dedos se basa en puntos 2D: funciona mejor con la mano visible y orientada hacia la cámara. Si se pliega o gira, ajusta `EXTENDED_ANGLE_DEGREES` en `camara/config.py`. El slider calcula el ángulo en pantalla entre la muñeca y los nudillos, para que mover un dedo aislado no altere el BPM. El contacto usa `TOUCH_THRESHOLD` para los sonidos y `SLIDER_TOUCH_THRESHOLD` para el slider, medidos como proporción del tamaño de la palma. `CONFIRM_RELEASE_FRAMES` evita guardar varias veces por un solo contacto.
 
-## Cómo crear otra variante
+## Otras ramas
 
-La rama `basic-impl` conserva el proyecto básico de gestos. Crea una rama desde ella para probar otras interacciones sin modificar esta versión.
+- `master`: índice y descripción general del proyecto.
+- `basic-impl`: implementación básica y detectores reutilizables; puedes partir de ella para crear otra variante.
